@@ -304,7 +304,7 @@ public class StreamBridgeTests {
 	}
 
 	@Test
-	public void testBridgeFunctionsWitthPartitionInformation() {
+	public void testBridgeFunctionsWithPartitionInformation() {
 		try (ConfigurableApplicationContext context = new SpringApplicationBuilder(TestChannelBinderConfiguration
 				.getCompleteConfiguration(EmptyConfiguration.class))
 						.web(WebApplicationType.NONE).run("--spring.cloud.stream.source=foo;bar",
@@ -355,6 +355,25 @@ public class StreamBridgeTests {
 			assertThat(message.getHeaders().get("scst_partition")).isEqualTo(2);
 
 			//assertThat(new String(outputDestination.receive(100, "bar-out-0").getPayload())).isEqualTo("b");
+		}
+	}
+
+	@Test
+	public void testBridgeFunctionsWithPartitionInformationAndNativeEncodingEnabled() throws Exception {
+		try (ConfigurableApplicationContext context = new SpringApplicationBuilder(TestChannelBinderConfiguration
+				.getCompleteConfiguration(EmptyConfiguration.class))
+						.web(WebApplicationType.NONE).run(
+								"--spring.cloud.stream.source=outputA",
+								"--spring.cloud.stream.default.producer.use-native-encoding=true",
+								"--spring.cloud.stream.default.producer.partition-key-expression=payload",
+								"--spring.jmx.enabled=false")) {
+			StreamBridge streamBridge = context.getBean(StreamBridge.class);
+			streamBridge.send("outputA-out-0", MessageBuilder.withPayload("A").build());
+			streamBridge.send("outputB-out-0", MessageBuilder.withPayload("B").build());
+
+			OutputDestination output = context.getBean(OutputDestination.class);
+			assertThat(output.receive(1000, "outputA-out-0").getHeaders().containsKey("scst_partition")).isTrue();
+			assertThat(output.receive(1000, "outputB-out-0").getHeaders().containsKey("scst_partition")).isTrue();
 		}
 	}
 
